@@ -1,0 +1,7 @@
+flask
+flask-login
+flask-wtf
+flask-migrate
+flask-sqlalchemy
+bleach
+markdown

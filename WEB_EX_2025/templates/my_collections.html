@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Мои подборки</h2>
+<table class="collections-table">
+    <tr>
+        <th style="width:40px;"></th>
+        <th>Название</th>
+        <th>Книг</th>
+        <th>Действие</th>
+    </tr>
+    {% for c in collections %}
+    <tr>
+        <td style="text-align:center;">
+            <span style="font-size:22px; color:#2d3e50;">&#128218;</span>
+        </td>
+        <td style="font-weight:500;">{{ c.name }}</td>
+        <td>
+            <span class="badge">{{ c.books_count }}</span>
+        </td>
+        <td>
+            <a href="{{ url_for('collection_view', collection_id=c.id) }}" class="btn btn-small collection-action-btn">Просмотр</a>
+            <form method="post" action="{{ url_for('delete_collection', collection_id=c.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-small collection-action-btn collection-delete-btn" onclick="return confirm('Удалить подборку?');">Удалить</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<div style="margin-top:18px;">
+    <button class="btn" onclick="showAddCollectionModal()">Добавить подборку</button>
+</div>
+
+<div id="addCollectionModal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000;">
+  <div style="background:#fff; max-width:400px; margin:100px auto; padding:28px 24px 18px 24px; border-radius:12px; position:relative; box-shadow:0 2px 16px rgba(44,62,80,0.13);">
+    <h3 style="margin-top:0; color:#2d3e50;">Новая подборка</h3>
+    <form method="post" action="{{ url_for('add_collection') }}">
+        <input type="text" name="name" placeholder="Название подборки" required style="width:100%;margin-bottom:18px; padding:8px 10px; border-radius:6px; border:1px solid #cfd8dc;">
+        <div style="text-align:right;">
+            <button type="button" onclick="closeAddCollectionModal()" class="btn btn-small" style="background:#888;">Отмена</button>
+            <button type="submit" class="btn btn-small">Добавить</button>
+        </div>
+    </form>
+  </div>
+</div>
+<script>
+function showAddCollectionModal() {
+    document.getElementById('addCollectionModal').style.display = 'block';
+}
+function closeAddCollectionModal() {
+    document.getElementById('addCollectionModal').style.display = 'none';
+}
+</script>
+<style>
+.collections-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+    background: #fafbfc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+}
+.collections-table th, .collections-table td {
+    padding: 14px 18px;
+    text-align: left;
+}
+.collections-table th {
+    background: #e9ecef;
+    font-weight: 600;
+    color: #2d3e50;
+    border-bottom: 2px solid #d1d7de;
+}
+.collections-table tr:nth-child(even) {
+    background: #f6f8fa;
+}
+.collections-table tr:hover {
+    background: #f0f4fa;
+}
+.badge {
+    display: inline-block;
+    min-width: 28px;
+    padding: 4px 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: #2d3e50;
+    border-radius: 12px;
+    text-align: center;
+}
+/* Стили для одинаковых кнопок */
+.collection-action-btn {
+    min-width: 120px;
+    height: 36px;
+    font-size: 15px;
+    padding: 6px 0;
+    text-align: center;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+}
+.collection-delete-btn {
+    background: #a94442;
+}
+.collection-delete-btn:hover {
+    background: #f5c6cb;
+    color: #721c24;
+}
+@media (max-width: 700px) {
+    .collections-table th, .collections-table td {
+        padding: 8px 6px;
+        font-size: 13px;
+    }
+    .collection-action-btn {
+        min-width: 0;
+        width: 100%;
+        margin-bottom: 4px;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,702 @@
+{# 
+    Главная страница: поиск и список книг.
+    Отображает фильтры и карточки книг.
+#}
+{% extends 'base.html' %}
+{% block content %}
+<h2 style="margin-top: 6px;">Список книг</h2>
+<form method="get" class="search-form search-form-grid search-form-wide search-form-fullwidth search-form-custom search-form-margin" style="max-width: 700px; margin-left: 0;">
+    <div class="search-form-row search-form-row-top" style="margin-bottom: 10px;">
+        <label>
+            <span>Название:</span>
+            <input type="text" name="title" value="{{ filters.title or '' }}" placeholder="Название" style="max-width:220px;">
+        </label>
+        <label>
+            <span>Автор:</span>
+            <input type="text" name="author" value="{{ filters.author or '' }}" placeholder="Автор" style="max-width:220px;">
+        </label>
+    </div>
+    <div class="search-form-row search-form-row-bottom" style="align-items: flex-end; margin-bottom: 10px;">
+        <div class="search-form-col">
+            <div class="search-form-col-label">Жанр:</div>
+            <div>
+                <select name="genre" multiple size="7" style="min-width:140px; max-width:220px;">
+                    <option value="__none__" {% if not filters.genre_ids %}selected{% endif %}>Не выбран</option>
+                    {% for genre in all_genres %}
+                        <option value="{{ genre.id }}" {% if genre.id in filters.genre_ids %}selected{% endif %}>{{ genre.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="search-form-col">
+            <div class="search-form-col-label">Год:</div>
+            <div>
+                <select name="year" multiple size="7" style="min-width:140px; max-width:220px;">
+                    <option value="__none__" {% if not filters.year_list %}selected{% endif %}>Не выбран</option>
+                    {% for y in all_years %}
+                        <option value="{{ y }}" {% if y in filters.year_list %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="search-form-col search-form-col-pages" style="display: flex; flex-direction: column; align-items: flex-start; min-width: 120px; max-width: 140px; margin-left: 24px;">
+            <label style="font-weight: 500; color: #2d3e50; margin-bottom: 6px; font-size: 15px;">Страниц:</label>
+            <input type="text" name="pages_from" value="{{ filters.pages_from or '' }}" style="width:90px; margin-bottom: 8px;" placeholder="от">
+            <input type="text" name="pages_to" value="{{ filters.pages_to or '' }}" style="width:90px; margin-bottom: 8px;" placeholder="до">
+            <button type="submit" class="btn btn-small search-pages-btn" style="margin-top: 0; width:90px;">Найти</button>
+        </div>
+    </div>
+</form>
+<div class="search-add-row" style="margin-top: 4px;">
+    {% if current_user.is_authenticated and current_user.role.name == 'admin' %}
+        <a href="/book/add" class="btn btn-small add-book-btn" style="text-decoration:none;">Добавить книгу</a>
+    {% endif %}
+</div>
+
+<div class="books-cards-list books-cards-list-grid">
+    {% for book in books.items %}
+    <div class="book-card-list">
+        <div class="book-card-list-cover">
+            {% if book.cover %}
+                <img src="/static/covers/{{ book.cover.filename }}" alt="Обложка" class="book-card-list-img">
+            {% else %}
+                <div class="book-card-list-placeholder">&#128214;</div>
+            {% endif %}
+        </div>
+        <div class="book-card-list-info">
+            <div class="book-card-list-title-row">
+                <a href="/book/{{ book.id }}" class="book-card-list-title">{{ book.title }}</a>
+                <span class="book-card-list-year">{{ book.year }}</span>
+            </div>
+            <div class="book-card-list-author">{{ book.author }}</div>
+            <div class="book-card-list-genres">
+                {% for genre in book.genres %}
+                    {{ genre.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+            <div class="book-card-list-meta">
+                <span class="book-card-list-pages">{{ book.pages }} стр.</span>
+                {% if book.avg_rating is not none %}
+                    <span class="book-card-list-rating">&#11088; {{ '%.1f'|format(book.avg_rating) }}</span>
+                {% endif %}
+                <span class="book-card-list-reviews">{{ book.reviews_count }} рец.</span>
+            </div>
+            <div class="book-card-list-actions">
+                <a href="/book/{{ book.id }}" class="action-btn view-btn" title="Просмотр">&#128065; Просмотр</a>
+                {% if current_user.is_authenticated and current_user.role.name in ['admin', 'moderator'] %}
+                    <a href="/book/{{ book.id }}/edit" class="action-btn edit-btn" title="Редактировать">&#9998; Редактировать</a>
+                {% endif %}
+                {% if current_user.is_authenticated and current_user.role.name == 'admin' %}
+                    <a href="#" class="action-btn delete-btn" title="Удалить"
+                       onclick="showDeleteModal({{ book.id }}, '{{ book.title|escape }}'); return false;">&#128465; Удалить</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="pagination-row">
+    <form method="get" style="display:inline;">
+        {% for key, value in filters.items() %}
+            {% if value %}
+                {% if value is iterable and value is not string %}
+                    {% for v in value %}
+                        <input type="hidden" name="{{ key }}" value="{{ v }}">
+                    {% endfor %}
+                {% else %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        <button type="submit" name="page" value="1" class="btn-small" {% if books.page == 1 %}disabled{% endif %}>&laquo; Первая</button>
+        <button type="submit" name="page" value="{{ books.prev_num }}" class="btn-small" {% if not books.has_prev %}disabled{% endif %}>&lt; Назад</button>
+    </form>
+    <span class="pagination-info">
+        Страница {{ books.page }} из {{ books.pages }}
+    </span>
+    <form method="get" style="display:inline;">
+        {% for key, value in filters.items() %}
+            {% if value %}
+                {% if value is iterable and value is not string %}
+                    {% for v in value %}
+                        <input type="hidden" name="{{ key }}" value="{{ v }}">
+                    {% endfor %}
+                {% else %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        <button type="submit" name="page" value="{{ books.next_num }}" class="btn-small" {% if not books.has_next %}disabled{% endif %}>Вперёд &gt;</button>
+        <button type="submit" name="page" value="{{ books.pages }}" class="btn-small" {% if books.page == books.pages %}disabled{% endif %}>Последняя &raquo;</button>
+    </form>
+</div>
+<div id="deleteModal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000;">
+  <div style="background:#fff; max-width:400px; margin:100px auto; padding:20px; border-radius:8px; position:relative;">
+    <h3>Удаление книги</h3>
+    <p id="deleteModalText"></p>
+    <div style="text-align:right;">
+      <button onclick="closeDeleteModal()">Нет</button>
+      <button id="deleteModalYesBtn">Да</button>
+    </div>
+  </div>
+</div>
+<script>
+let deleteBookId = null;
+function showDeleteModal(bookId, bookTitle) {
+    deleteBookId = bookId;
+    document.getElementById('deleteModalText').innerText = 'Вы уверены, что хотите удалить книгу "' + bookTitle + '"?';
+    document.getElementById('deleteModal').style.display = 'block';
+}
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    deleteBookId = null;
+}
+document.getElementById('deleteModalYesBtn').onclick = function() {
+    if (deleteBookId) {
+        window.location.href = '/book/' + deleteBookId + '/delete';
+    }
+};
+</script>
+<style>
+.books-list-fullwidth {
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    background: #f4f6fb;
+    padding: 0 0 16px 0;
+}
+main {
+    padding: 8px 32px 24px 32px;
+}
+@media (max-width: 700px) {
+    main { padding: 4px 10px 10px 10px; }
+}
+.search-form-grid {
+    max-width: 700px;
+    margin-bottom: 2px;
+    background: #f8fafc;
+    padding: 4px 10px 2px 10px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    /* убираем центрирование */
+    align-items: flex-start;
+}
+.search-form-margin {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+.books-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 1100px;
+    margin: 0 auto 24px auto;
+    padding: 0 8px;
+}
+.books-cards-list-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 28px;
+    max-width: 1100px;
+    margin: 0 auto 24px auto;
+    padding: 0 8px;
+}
+.book-card-list {
+    display: flex;
+    gap: 24px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 16px rgba(44,62,80,0.07);
+    padding: 18px 24px;
+    align-items: flex-start;
+    transition: box-shadow 0.2s;
+}
+.book-card-list:hover {
+    box-shadow: 0 4px 24px rgba(44,62,80,0.13);
+}
+.book-card-list-cover {
+    width: 90px;
+    min-width: 90px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.book-card-list-img {
+    width: 90px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.10);
+    transition: transform 0.18s;
+}
+.book-card-list-img:hover {
+    transform: scale(1.06) rotate(-2deg);
+    box-shadow: 0 4px 18px rgba(44,62,80,0.18);
+}
+.book-card-list-placeholder {
+    width: 90px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f8fa;
+    border-radius: 8px;
+    font-size: 38px;
+    color: #aaa;
+    border: 1px solid #e9ecef;
+}
+.book-card-list-info {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.book-card-list-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+.book-card-list-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2d3e50;
+    text-decoration: none;
+}
+.book-card-list-title:hover {
+    color: #1d3557;
+    text-decoration: underline;
+}
+.book-card-list-year {
+    font-size: 16px;
+    color: #888;
+    font-weight: 500;
+}
+.book-card-list-author {
+    font-size: 16px;
+    color: #444;
+}
+.book-card-list-genres {
+    font-size: 15px;
+    color: #666;
+}
+.book-card-list-meta {
+    display: flex;
+    gap: 18px;
+    margin-top: 6px;
+    font-size: 15px;
+    color: #444;
+}
+.book-card-list-pages {
+    color: #888;
+}
+.book-card-list-rating {
+    color: #ffd700;
+    font-weight: 600;
+}
+.book-card-list-reviews {
+    color: #2d3e50;
+}
+.book-card-list-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+    .books-cards-list-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 0 2px;
+    }
+    .book-card-list {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 8px;
+    }
+    .book-card-list-cover, .book-card-list-img, .book-card-list-placeholder {
+        width: 70px;
+        height: 90px;
+        min-width: 70px;
+        font-size: 28px;
+    }
+    .book-card-list-title {
+        font-size: 18px;
+    }
+}
+@media (max-width: 700px) {
+    .books-list-fullwidth {
+        padding: 0 0 18px 0;
+    }
+    .books-cards-list {
+        gap: 10px;
+        padding: 0 2px;
+    }
+    .book-card-list {
+        padding: 8px 2px;
+    }
+}
+.search-add-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 15px;
+}
+.add-book-btn {
+    white-space: nowrap;
+    margin-left: 18px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    padding: 4px 16px;
+    text-decoration: none !important;
+}
+.btn-small {
+    font-size: 14px;
+    padding: 4px 16px;
+    height: 32px;
+}
+.actions-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+.action-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none !important;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+    cursor: pointer;
+    margin: 0;
+}
+.view-btn {
+    background: #e9ecef;
+    color: #2d3e50;
+}
+.view-btn:hover {
+    background: #d1e7fd;
+    color: #1d3557;
+}
+.edit-btn {
+    background: #fff3cd;
+    color: #856404;
+}
+.edit-btn:hover {
+    background: #ffe082;
+    color: #6d4c00;
+}
+.delete-btn {
+    background: #f8d7da;
+    color: #a94442;
+}
+.delete-btn:hover {
+    background: #f5c6cb;
+    color: #721c24;
+}
+.cover-thumb-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 84px;
+    height: 120px;
+    background: linear-gradient(135deg, #f8fafc 60%, #e9ecef 100%);
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.10);
+    overflow: hidden;
+    position: relative;
+    margin: 0 auto;
+}
+.cover-thumb {
+    width: 80px;
+    height: 112px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.10);
+    transition: transform 0.18s;
+}
+.cover-thumb:hover {
+    transform: scale(1.06) rotate(-2deg);
+    box-shadow: 0 4px 18px rgba(44,62,80,0.18);
+}
+.cover-thumb-placeholder {
+    background: linear-gradient(135deg, #f6f8fa 60%, #e9ecef 100%);
+    border: 1.5px dashed #cfd8dc;
+}
+.cover-thumb-icon {
+    font-size: 38px;
+    color: #b0b8c1;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+@media (max-width: 900px) {
+    .cover-thumb-wrapper {
+        width: 60px;
+        height: 80px;
+    }
+    .cover-thumb, .cover-thumb-placeholder {
+        width: 56px;
+        height: 76px;
+    }
+    .cover-thumb-icon {
+        font-size: 26px;
+    }
+}
+.pagination-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin: 18px 0 0 0;
+}
+.pagination-row form {
+    display: flex;
+    gap: 8px;
+}
+.pagination-info {
+    font-size: 16px;
+    color: #444;
+    min-width: 120px;
+    text-align: center;
+}
+.btn-small[disabled], .btn-small:disabled {
+    background: #e9ecef !important;
+    color: #aaa !important;
+    cursor: not-allowed;
+    border: none;
+    opacity: 0.7;
+}
+.search-form-grid {
+    max-width: 700px;
+    margin-bottom: 2px;
+    background: #f8fafc;
+    padding: 4px 10px 2px 10px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.search-form-wide {
+    max-width: 1100px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+@media (max-width: 1200px) {
+    .search-form-wide {
+        max-width: 98vw;
+        padding-left: 2vw;
+        padding-right: 2vw;
+    }
+}
+.search-form-centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.search-form-centered .search-form-row {
+    width: 100%;
+    justify-content: center;
+}
+.search-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    margin-bottom: 10px;
+}
+.search-form-row label {
+    flex: 1 1 260px;
+    max-width: 320px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+.search-form-row input[type="text"], .search-form-row select {
+    font-size: 15px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    border: 1px solid #cfd8dc;
+    background: #fff;
+    min-width: 120px;
+    margin: 0;
+}
+.search-form-row select[multiple] {
+    min-width: 110px;
+    height: 36px;
+}
+.search-form-row button {
+    margin-left: 18px;
+    height: 36px;
+}
+@media (max-width: 900px) {
+    .search-form-grid {
+        max-width: 100%;
+        padding: 10px 4px 4px 4px;
+    }
+    .search-form-centered .search-form-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .search-form-centered .search-form-row label {
+        max-width: 100%;
+    }
+    .search-form-row {
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .search-form-row label {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .search-form-row button {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+.search-form-fullwidth {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-left: 0;
+    padding-right: 0;
+}
+.search-form-fullwidth .search-form-row {
+    justify-content: space-between;
+    width: 100%;
+    gap: 32px;
+}
+.search-form-fullwidth .search-form-row label {
+    flex: 1 1 0;
+    max-width: none;
+}
+@media (max-width: 1200px) {
+    .search-form-fullwidth {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
+@media (max-width: 900px) {
+    .search-form-fullwidth .search-form-row {
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .search-form-fullwidth .search-form-row label {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+.search-form-custom .search-form-row-top {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 10px;
+    justify-content: flex-start;
+}
+.search-form-custom .search-form-row-top label {
+    flex: 1 1 320px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+.search-form-custom .search-form-row-bottom {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 0;
+    justify-content: flex-start;
+    align-items: flex-end;
+}
+.search-form-custom .search-form-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    max-width: 220px;
+    flex: 1 1 140px;
+    margin-bottom: 0;
+}
+.search-form-custom .search-form-col-label {
+    font-weight: 500;
+    color: #2d3e50;
+    margin-bottom: 6px;
+    font-size: 15px;
+}
+.search-form-custom select[multiple] {
+    /* min-width/max-width теперь задаются инлайн, но можно оставить базовые стили */
+    height: 140px;
+    font-size: 15px;
+    border-radius: 5px;
+    border: 1px solid #cfd8dc;
+    background: #fff;
+    margin-bottom: 0;
+}
+.search-form-custom .search-form-col-pages {
+    max-width: 180px;
+}
+.search-form-custom .search-form-col-btn {
+    min-width: 120px;
+    max-width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+@media (max-width: 1100px) {
+    .search-form-custom .search-form-row-top,
+    .search-form-custom .search-form-row-bottom {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    .search-form-custom .search-form-col,
+    .search-form-custom .search-form-row-top label {
+        max-width: 100%;
+        width: 100%;
+    }
+    .search-form-custom .search-form-col-btn {
+        align-items: stretch;
+        max-width: 100%;
+    }
+}
+.search-form-col,
+.search-form-col label,
+.search-form-row label {
+    max-width: 220px;
+}
+.search-pages-btn {
+    border-radius: 8px !important;
+}
+</style>
+{% endblock %}

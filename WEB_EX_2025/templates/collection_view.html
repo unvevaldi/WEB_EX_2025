@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>{{ collection.name }}</h2>
+<div class="books-cards-list">
+    {% for book in collection.books %}
+    <div class="book-card">
+        <div class="book-card-cover">
+            {% if book.cover %}
+                <img src="/static/covers/{{ book.cover.filename }}" alt="Обложка">
+            {% else %}
+                <div class="book-card-cover-placeholder">&#128214;</div>
+            {% endif %}
+        </div>
+        <div class="book-card-info">
+            <div class="book-card-title-row">
+                <a href="{{ url_for('book_view', book_id=book.id) }}" class="book-card-title">{{ book.title }}</a>
+                <span class="book-card-year">{{ book.year }}</span>
+            </div>
+            <div class="book-card-author">
+                {{ book.author }}
+            </div>
+            <div class="book-card-genres">
+                {% for genre in book.genres %}
+                    {{ genre.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+            <div class="book-card-meta">
+                <span class="book-card-pages">{{ book.pages }} стр.</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<a href="{{ url_for('my_collections') }}" class="btn" style="background:#888;">Назад</a>
+<style>
+.books-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 1100px;
+    margin: 0 auto 24px auto;
+    padding: 0 8px;
+}
+.book-card {
+    display: flex;
+    gap: 24px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 16px rgba(44,62,80,0.07);
+    padding: 18px 24px;
+    align-items: flex-start;
+    transition: box-shadow 0.2s;
+}
+.book-card:hover {
+    box-shadow: 0 4px 24px rgba(44,62,80,0.13);
+}
+.book-card-cover {
+    width: 90px;
+    min-width: 90px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.book-card-cover img {
+    width: 90px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.10);
+}
+.book-card-cover-placeholder {
+    width: 90px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f8fa;
+    border-radius: 8px;
+    font-size: 38px;
+    color: #aaa;
+    border: 1px solid #e9ecef;
+}
+.book-card-info {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.book-card-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+.book-card-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2d3e50;
+    text-decoration: none;
+}
+.book-card-title:hover {
+    color: #1d3557;
+    text-decoration: underline;
+}
+.book-card-year {
+    font-size: 16px;
+    color: #888;
+    font-weight: 500;
+}
+.book-card-author {
+    font-size: 16px;
+    color: #444;
+}
+.book-card-genres {
+    font-size: 15px;
+    color: #666;
+}
+.book-card-meta {
+    display: flex;
+    gap: 18px;
+    margin-top: 6px;
+    font-size: 15px;
+    color: #444;
+}
+.book-card-pages {
+    color: #888;
+}
+@media (max-width: 900px) {
+    .books-cards-list {
+        padding: 0 2px;
+    }
+    .book-card {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 8px;
+    }
+    .book-card-cover, .book-card-cover img, .book-card-cover-placeholder {
+        width: 70px;
+        height: 90px;
+        min-width: 70px;
+        font-size: 28px;
+    }
+    .book-card-title {
+        font-size: 18px;
+    }
+}
+</style>
+{% endblock %}
